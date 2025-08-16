@@ -3,3 +3,4 @@
 # DzowaAInotesAPP
 # DzowaAInotesAPP
 # DZOWAFINARI
+# takundaSmarta
