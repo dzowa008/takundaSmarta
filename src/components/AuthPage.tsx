@@ -108,36 +108,91 @@ function AuthPage({ onBackToLanding }: AuthPageProps) {
     }
 
     setIsLoading(true);
+    setErrors({});
+    setSuccessMessage('');
 
     try {
       let result;
       if (isLogin) {
         result = await signIn(formData.email, formData.password);
-        if (!result.success && result.error?.includes('No account found')) {
-          setErrors({ 
-            email: 'No account exists with this email. Please sign up first.',
-            form: 'Would you like to create a new account instead?' 
-          });
-          setTimeout(() => {
-            setIsLogin(false);
-            setErrors({});
-          }, 3000);
+        
+        if (!result.success) {
+          // Handle specific authentication errors
+          let errorMessage = 'Authentication failed. Please try again.';
+          let fieldError = 'form';
+          
+          if (result.error) {
+            if (result.error.includes('Invalid login credentials') || result.error.includes('Invalid email or password')) {
+              errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+              fieldError = 'form';
+            } else if (result.error.includes('Email not confirmed')) {
+              errorMessage = 'Please check your email and confirm your account before signing in.';
+              fieldError = 'email';
+            } else if (result.error.includes('Too many requests')) {
+              errorMessage = 'Too many failed attempts. Please wait a moment before trying again.';
+              fieldError = 'form';
+            } else {
+              errorMessage = result.error;
+              fieldError = 'form';
+            }
+          }
+          
+          setErrors({ [fieldError]: errorMessage });
+          setIsLoading(false);
           return;
         }
       } else {
         result = await signUp(formData.email, formData.password, formData.fullName || '');
+        
+        if (!result.success) {
+          let errorMessage = 'Sign up failed. Please try again.';
+          let fieldError = 'form';
+          
+          if (result.error) {
+            if (result.error.includes('User already registered')) {
+              errorMessage = 'An account with this email already exists. Please sign in instead.';
+              fieldError = 'email';
+            } else if (result.error.includes('Password')) {
+              errorMessage = result.error;
+              fieldError = 'password';
+            } else if (result.error.includes('Email')) {
+              errorMessage = result.error;
+              fieldError = 'email';
+            } else {
+              errorMessage = result.error;
+              fieldError = 'form';
+            }
+          }
+          
+          setErrors({ [fieldError]: errorMessage });
+          setIsLoading(false);
+          return;
+        }
       }
       
       if (result.success) {
-        // Authentication successful - App.tsx will automatically redirect to dashboard
-        // No need to call onAuthSuccess as the user state change will trigger redirect
-        setSuccessMessage(isLogin ? 'Successfully signed in!' : 'Account created successfully!');
-      } else {
-        setErrors({ email: result.error || 'Authentication failed. Please try again.' });
+        if (isLogin) {
+          setSuccessMessage('Successfully signed in! Redirecting to dashboard...');
+        } else {
+          setSuccessMessage('Account created successfully! Please check your email to confirm your account before signing in.');
+          // Clear form after successful signup
+          setFormData({
+            email: '',
+            password: '',
+            confirmPassword: '',
+            fullName: ''
+          });
+          // Switch to login mode after successful signup
+          setTimeout(() => {
+            setIsLogin(true);
+            setSuccessMessage('');
+          }, 5000);
+        }
         setIsLoading(false);
       }
     } catch (error) {
-      setErrors({ email: 'Authentication failed. Please try again.' });
+      console.error('Authentication error:', error);
+      setErrors({ form: 'An unexpected error occurred. Please try again.' });
       setIsLoading(false);
     }
   };
@@ -389,10 +444,39 @@ function AuthPage({ onBackToLanding }: AuthPageProps) {
                       : 'Get started with SmaRta AI Notes - it\'s free!'
                     }
                   </p>
+                  {/* Success Message */}
+                  {successMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mt-4 p-4 bg-green-500/20 border border-green-500/40 rounded-xl"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-green-300 font-medium">{successMessage}</p>
+                          {!isLogin && successMessage.includes('check your email') && (
+                            <p className="text-green-400/80 text-sm mt-1">
+                              We've sent a confirmation link to your email address.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* Form Errors */}
                   {errors.form && (
-                    <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                      <p className="text-purple-300">{errors.form}</p>
-                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mt-4 p-4 bg-red-500/20 border border-red-500/40 rounded-xl"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                        <p className="text-red-300">{errors.form}</p>
+                      </div>
+                    </motion.div>
                   )}
                 </motion.div>
 
@@ -573,6 +657,28 @@ function AuthPage({ onBackToLanding }: AuthPageProps) {
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </motion.button>
+
+                  {/* Signup Info Message */}
+                  {!isLogin && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="w-5 h-5 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        </div>
+                        <div className="text-sm text-blue-300">
+                          <p className="font-medium">Account Creation Process</p>
+                          <p className="text-blue-400/80 mt-1">
+                            After creating your account, you'll receive a confirmation email. 
+                            Please check your inbox and click the confirmation link to activate your account.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* Divider */}
                   <div className="relative my-8">

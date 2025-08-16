@@ -102,7 +102,25 @@ export class SupabaseService {
       return { success: true, user: data.user };
     } catch (error) {
       console.error('Sign up error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      
+      // Handle specific Supabase signup errors
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        if (errorMessage.includes('User already registered')) {
+          return { success: false, error: 'An account with this email already exists. Please sign in instead.' };
+        } else if (errorMessage.includes('Password should be at least')) {
+          return { success: false, error: 'Password must be at least 6 characters long.' };
+        } else if (errorMessage.includes('Invalid email')) {
+          return { success: false, error: 'Please enter a valid email address.' };
+        } else if (errorMessage.includes('Unable to validate email')) {
+          return { success: false, error: 'Unable to validate email. Please check your email address and try again.' };
+        } else {
+          return { success: false, error: errorMessage };
+        }
+      }
+      
+      return { success: false, error: 'Sign up failed. Please try again.' };
     }
   }
 
@@ -118,7 +136,25 @@ export class SupabaseService {
       return { success: true, user: data.user };
     } catch (error) {
       console.error('Sign in error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      
+      // Handle specific Supabase authentication errors
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        if (errorMessage.includes('Invalid login credentials')) {
+          return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
+        } else if (errorMessage.includes('Email not confirmed')) {
+          return { success: false, error: 'Please check your email and confirm your account before signing in.' };
+        } else if (errorMessage.includes('Too many requests')) {
+          return { success: false, error: 'Too many failed attempts. Please wait a moment before trying again.' };
+        } else if (errorMessage.includes('User not found')) {
+          return { success: false, error: 'No account found with this email. Please sign up first.' };
+        } else {
+          return { success: false, error: errorMessage };
+        }
+      }
+      
+      return { success: false, error: 'Authentication failed. Please try again.' };
     }
   }
 
